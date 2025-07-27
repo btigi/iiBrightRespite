@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ii.BrightRespite</RootNamespace>
+    <AssemblyName>ii.BrightRespite</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Copyright>Copyright ©  2025</Copyright>
+    <Title>ii.BrightRespite</Title>
+    <Version>0.0.0.1</Version>
+    <Authors>iggti</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/btigi/iiBrightRespite/</RepositoryUrl>
+    <Description>C# library supporting the modification of files relating to Dark Reign, the 1997 RTS game developed by Auran / N3V Games.</Description>
+    <PackageTags>dark reign</PackageTags>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\readme.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
