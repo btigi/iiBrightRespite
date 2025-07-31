@@ -5,29 +5,23 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 
 | Name   | Read | Write | Comment
 |--------|:----:|-------|--------
-| ACT    | ✗   |   ✗   |
+| ACT    | ✔   |   ✗   |
 | AIP    | ✗   |   ✗   | Plain text
 | BAK    | ✗   |   ✗   | Plain text
 | BMP    | ✗   |   ✗   | Standard bitmap
 | BRF    | ✗   |   ✗   | Plain text
 | BTM    | ✗   |   ✗   | Plain text
 | CFG    | ✗   |   ✗   | Plain text
-| CNT    | ✗   |   ✗   |
-| CRS    | ✗   |   ✗   |
-| DLL    | ✗   |   ✗   |
-| DOC    | ✗   |   ✗   |
+| CNT    | ✗   |   ✗   | Plain text
+| CRS    | 🟢   |   ✗   | Cursors - need to identify palette
+| DOC    | ✗   |   ✗   | Plain text
 | END    | ✗   |   ✗   | Plain text
-| EXE    | ✗   |   ✗   |
 | FOG    | ✗   |   ✗   |
 | FTG    | ✔   |   ✗   |
 | FSM    | ✔   |   ✗   |
 | H      | ✗   |   ✗   | Plain text
-| ICO    | ✗   |   ✗   |
-| INF    | ✗   |   ✗   | Plain text
-| LDL    | ✗   |   ✗   |
 | MAP    | ✗   |   ✗   |
 | MM     | ✗   |   ✗   |
-| OGG    | ✗   |   ✗   |
 | PAL    | ✗   |   ✗   |
 | PCX    | ✗   |   ✗   |
 | PSD    | ✗   |   ✗   |
@@ -36,7 +30,8 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | SAF    | ✗   |   ✗   | Plain text
 | SCN    | ✗   |   ✗   | Plain text
 | SMK    | ✗   |   ✗   |
-| SPR    | 🟢   |   ✗   |
+| SPR(R) | 🟢   |   ✗   |
+| SPR(S) | 🟢   |   ✗   |
 | TIL    | ✗   |   ✗   |
 | TXT    | ✗   |   ✗   |
 
