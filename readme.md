@@ -5,12 +5,40 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 
 | Name   | Read | Write | Comment
 |--------|:----:|-------|--------
+| ACT    | ✗   |   ✗   |
+| AIP    | ✗   |   ✗   | Plain text
+| BAK    | ✗   |   ✗   | Plain text
+| BMP    | ✗   |   ✗   | Standard bitmap
+| BRF    | ✗   |   ✗   | Plain text
+| BTM    | ✗   |   ✗   | Plain text
+| CFG    | ✗   |   ✗   | Plain text
+| CNT    | ✗   |   ✗   |
+| CRS    | ✗   |   ✗   |
+| DLL    | ✗   |   ✗   |
+| DOC    | ✗   |   ✗   |
+| END    | ✗   |   ✗   | Plain text
+| EXE    | ✗   |   ✗   |
 | FOG    | ✗   |   ✗   |
 | FTG    | ✔   |   ✗   |
+| FSM    | ✔   |   ✗   |
+| H      | ✗   |   ✗   | Plain text
+| ICO    | ✗   |   ✗   |
+| INF    | ✗   |   ✗   | Plain text
+| LDL    | ✗   |   ✗   |
 | MAP    | ✗   |   ✗   |
 | MM     | ✗   |   ✗   |
-| SPR    | 🟢  |   ✗   |
-| TIL    | ✗   |   ✗   | 
+| OGG    | ✗   |   ✗   |
+| PAL    | ✗   |   ✗   |
+| PCX    | ✗   |   ✗   |
+| PSD    | ✗   |   ✗   |
+| RLD    | ✗   |   ✗   |
+| RLI    | ✗   |   ✗   |
+| SAF    | ✗   |   ✗   | Plain text
+| SCN    | ✗   |   ✗   | Plain text
+| SMK    | ✗   |   ✗   |
+| SPR    | 🟢   |   ✗   |
+| TIL    | ✗   |   ✗   |
+| TXT    | ✗   |   ✗   |
 
 ## Usage
 
