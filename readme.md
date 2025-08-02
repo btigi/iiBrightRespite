@@ -13,7 +13,7 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | BTM    | ✗   |   ✗   | Plain text
 | CFG    | ✗   |   ✗   | Plain text
 | CNT    | ✗   |   ✗   | Plain text
-| CRS    | 🟢   |   ✗   | Cursors - need to identify palette
+| CRS    | ✔   |   ✗   | Cursors - unknown palette
 | DOC    | ✗   |   ✗   | Plain text
 | END    | ✗   |   ✗   | Plain text
 | FOG    | ✗   |   ✗   |
@@ -22,7 +22,7 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | H      | ✗   |   ✗   | Plain text
 | MAP    | ✗   |   ✗   |
 | MM     | ✗   |   ✗   |
-| PAL    | ✗   |   ✗   |
+| PAL    | ✔   |   ✗   |
 | PCX    | ✔   |   ✗   |
 | PSD    | ✗   |   ✗   |
 | RLD    | ✗   |   ✗   |
@@ -30,10 +30,10 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | SAF    | ✗   |   ✗   | Plain text
 | SCN    | ✗   |   ✗   | Plain text
 | SMK    | ✗   |   ✗   |
-| SPR(R) | 🟢   |   ✗   |
-| SPR(S) | 🟢   |   ✗   |
+| SPR(R) | ✔   |   ✗   |
+| SPR(S) | ✔   |   ✗   |
 | TIL    | ✗   |   ✗   |
-| TXT    | ✗   |   ✗   |
+| TXT    | ✗   |   ✗   | Plain text
 
 ## Usage
 
