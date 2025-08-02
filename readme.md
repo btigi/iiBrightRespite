@@ -23,7 +23,7 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | MAP    | ✗   |   ✗   |
 | MM     | ✗   |   ✗   |
 | PAL    | ✗   |   ✗   |
-| PCX    | ✗   |   ✗   |
+| PCX    | ✔   |   ✗   |
 | PSD    | ✗   |   ✗   |
 | RLD    | ✗   |   ✗   |
 | RLI    | ✗   |   ✗   |
