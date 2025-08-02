@@ -1,10 +1,7 @@
 ﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using System.Runtime.InteropServices;
 
 namespace ii.BrightRespite;
-
 
 public class SprProcessor
 {
@@ -39,21 +36,16 @@ ANIMATION INFORMATION?
 FRAME INFORMATION
 
 FRAMES
-29x 1E (fill x pixels with the default colour, i.e. fill 29 x 1E pixels with the default
-colour)
-01x 0B (fill x pixels with the default colour, i.e. fill 0B x 1E pixels with the default
-colour)
+29x 1E (fill x pixels with the default colour, i.e. fill 29 x 1E pixels with the default colour)
+01x 0B (fill x pixels with the default colour, i.e. fill 0B x 1E pixels with the default colour)
 1   number of explicit bytes
 x   explit bytes
-01x 11 (fill x pixels with the default colour, i.e. fill 01 x 11 pixels with the default
-colour)
-01x 09 (fill x pixels with the default colour, i.e. fill 01 x 09 pixels with the default
-colour)
+01x 11 (fill x pixels with the default colour, i.e. fill 01 x 11 pixels with the default colour)
+01x 09 (fill x pixels with the default colour, i.e. fill 01 x 09 pixels with the default colour)
 ...
 27x 1E
 
-once the default colour is specified, any remaining unspecified pixels are filled
-with it
+once the default colour is specified, any remaining unspecified pixels are filled with it
 
 HOTSPOTS
 hot spot information is stored after the frame data
@@ -90,8 +82,6 @@ frames  frame_e2    frame_n2    frame_w2
         frame_e5                
 */
 
-
-
     private const int HeaderSize = 32;
     private const int FrameOrderSize = 4;
     private const int SectionSize = 16;
@@ -99,18 +89,52 @@ frames  frame_e2    frame_n2    frame_w2
     private const string SignatureShadow = "SSPR";
     private const int Version = 528;
 
-    private const int DEFAULTCOLOUR = 0; // TEMP - should come from palette
+    private const int DEFAULTCOLOUR = 0;
 
-    private string filename { get; set; }
+    private static readonly List<(int r, int g, int b)> DefaultPalette =
+    [
+        (0, 0, 0), (3, 3, 3), (5, 5, 5), (10, 10, 10), (15, 15, 15), (20, 20, 20), (25, 25, 25), (33, 33, 33),
+        (40, 40, 40), (51, 51, 51), (61, 61, 61), (76, 76, 76), (89, 89, 89), (99, 99, 99), (107, 107, 107), (255, 255, 255),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (255, 8, 0), (255, 153, 2),
+        (255, 255, 2), (85, 250, 3), (2, 92, 255), (0, 0, 0), (2, 255, 255), (2, 75, 75), (119, 255, 135), (2, 69, 10),
+        (44, 15, 72), (66, 17, 112), (98, 19, 170), (117, 18, 207), (138, 19, 246), (148, 53, 250), (153, 83, 255), (156, 111, 255),
+        (77, 5, 0), (106, 5, 10), (127, 16, 16), (150, 21, 21), (176, 27, 27), (202, 35, 35), (235, 42, 66), (255, 61, 91),
+        (72, 47, 13), (112, 59, 23), (150, 74, 11), (190, 96, 11), (229, 120, 10), (254, 145, 25), (255, 164, 64), (255, 187, 104),
+        (43, 43, 11), (58, 66, 13), (65, 96, 15), (44, 113, 16), (22, 135, 16), (15, 154, 32), (21, 172, 100), (20, 187, 143),
+        (3, 58, 49), (7, 78, 73), (4, 100, 101), (5, 119, 123), (6, 137, 146), (7, 156, 168), (16, 169, 211), (25, 184, 240),
+        (5, 17, 82), (8, 30, 97), (34, 47, 129), (41, 59, 164), (48, 69, 197), (54, 83, 225), (76, 97, 253), (92, 115, 255),
+        (29, 12, 10), (46, 21, 13), (63, 30, 17), (83, 41, 22), (101, 51, 26), (121, 60, 30), (143, 70, 44), (171, 90, 72),
+        (93, 76, 72), (121, 100, 96), (131, 131, 131), (155, 155, 155), (179, 179, 179), (203, 203, 203), (200, 214, 233), (211, 228, 240),
+        (23, 1, 1), (66, 1, 7), (118, 6, 11), (169, 6, 6), (208, 22, 7), (229, 38, 6), (241, 62, 6), (254, 84, 7),
+        (254, 110, 21), (254, 134, 35), (255, 181, 60), (245, 208, 69), (255, 234, 99), (255, 255, 136), (11, 11, 12), (22, 21, 38),
+        (32, 35, 64), (44, 45, 102), (78, 66, 161), (110, 92, 225), (2, 0, 2), (10, 2, 7), (24, 7, 25), (38, 11, 34),
+        (47, 18, 49), (60, 27, 74), (68, 40, 81), (90, 59, 110), (141, 104, 154), (94, 95, 42), (18, 19, 1), (33, 30, 8),
+        (39, 37, 16), (112, 109, 63), (65, 52, 0), (60, 63, 14), (85, 115, 28), (137, 121, 69), (168, 139, 43), (126, 116, 45),
+        (171, 162, 85), (201, 207, 134), (93, 148, 62), (8, 22, 27), (21, 34, 38), (30, 48, 56), (51, 69, 79), (76, 101, 117),
+        (46, 66, 46), (60, 87, 60), (102, 117, 104), (124, 127, 68), (19, 4, 6), (33, 12, 15), (20, 2, 0), (30, 6, 0),
+        (56, 16, 5), (38, 22, 11), (76, 51, 37), (125, 84, 61), (161, 130, 111), (39, 161, 214), (126, 198, 238), (185, 255, 255),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0),
+        (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)
+    ];
+
     private FileStream sprFileStream { get; set; }
     private BinaryReader sprBinaryReader { get; set; }
-    public Image<Rgba32> Palette { get; set; }
+    public List<(int r, int g, int b)> Palette { get; set; }
 
     public void Open(string sprFilename)
     {
         sprFileStream = new FileStream(sprFilename, FileMode.Open, FileAccess.Read);
         sprBinaryReader = new BinaryReader(sprFileStream);
-        filename = sprFilename;
     }
 
     public List<Image<Rgba32>> Parse()
@@ -123,10 +147,7 @@ frames  frame_e2    frame_n2    frame_w2
             throw new InvalidOperationException($"Unhandled SPR type: {identifier}");
         }
 
-        if (identifier == SignatureSprite)
-        {
-            return new List<Image<Rgba32>>();
-        }
+        bool isShadow = identifier == SignatureShadow;
 
 
         var version = sprBinaryReader.ReadInt32();
@@ -142,22 +163,22 @@ frames  frame_e2    frame_n2    frame_w2
         var frameCountTotal = sprBinaryReader.ReadInt32();
         var sectionCount = sprBinaryReader.ReadInt32();
 
-        var sectionOffset = HeaderSize + (FrameOrderSize * frameCountTotal);
-        var frameOffset = sectionOffset + (SectionSize * sectionCount) + (4 * framesPerSectionCount) + 4;
-
+        var sectionOffset = HeaderSize + (4 * framesPerSectionCount * rotationCount);
+        var animationOffset = sectionOffset + (16 * sectionCount);
+        var frameInfoOffset = animationOffset + (4 * framesPerSectionCount);
+        var frameDataOffset = frameInfoOffset + (8 * frameCountTotal) + 4;
 
         var totalHotspots = 0;
 
         // An array of frame indices, e.g. if there are 3 frames this lists 0,1,2
-        for (int i = 0; i < frameCountTotal; i++)
+        for (var i = 0; i < framesPerSectionCount * rotationCount; i++)
         {
             var frameOrder = sprBinaryReader.ReadInt32();
         }
 
-
         // Section information
         sprBinaryReader.BaseStream.Position = sectionOffset;
-        for (int i = 0; i < sectionCount; i++)
+        for (var i = 0; i < sectionCount; i++)
         {
             var sectionFirst = sprBinaryReader.ReadInt32();
             var sectionLast = sprBinaryReader.ReadInt32();
@@ -166,214 +187,145 @@ frames  frame_e2    frame_n2    frame_w2
             totalHotspots += sectionHotSpotCount;
         }
 
+        // Animation data section (4 * framesPerSectionCount bytes) - section number for each animation
+        // We read sections info above so we skip this data here
 
-        // (4 * framesPerSectionCount) + 4 bytes of data
-
-
-        // Frame information
-        sprBinaryReader.BaseStream.Position = frameOffset;
+        // Frame information (frameCountTotal entries of 8 bytes each)
+        sprBinaryReader.BaseStream.Position = frameInfoOffset;
         var frameInfos = new List<FrameInfo>();
-        for (int i = 0; i < frameCountTotal; i++)
+        for (var i = 0; i < frameCountTotal; i++)
         {
-            var unknown5 = sprBinaryReader.ReadInt32();
-            var dataPosition = sprBinaryReader.ReadInt32();
+            var dataOffset = sprBinaryReader.ReadInt32();
+            var hotspotOffset = sprBinaryReader.ReadInt32();
             var frameInfo = new FrameInfo();
-            frameInfo.Unknown = unknown5;
-            frameInfo.DataPosition = dataPosition;
+            frameInfo.DataPosition = dataOffset;
+            frameInfo.HotspotOffset = hotspotOffset;
             frameInfos.Add(frameInfo);
         }
 
+        /*
+        The shadow sprite treats each pixel as on (coloured) or off (transparent)
+        Read through the data bytes, with the first byte being how many off pixels to 
+        draw, the second byte being how many on pixels to draw, the third being how
+        many off pixels to draw and so on. The pattern resets whenever the number of        
+        */
 
         // Frame data
         byte dataByte;
-        for (int frame = 0; frame < frameCountTotal; frame++)
+        for (var frame = 0; frame < frameCountTotal; frame++)
         {
             var data = new byte[width * height * 3];
 
-            var currentRow = 0; // how far down the image we've progressed
-            var widthProgress = 0; // how far across the current row we've progressed - used to increment currentRow when we've completed a row
-            var doneDefault = false; // whether we've completed the initial default byte reading
-            var doneData = false; // whether we've completed the data reading
-            var dataPosition = 0; // position in the data array, where we write the actual image bytes
+            // Seek to frame data position (calculated from frame data offset + frame data position)
+            sprBinaryReader.BaseStream.Seek(frameDataOffset + frameInfos[frame].DataPosition, SeekOrigin.Begin);
 
-            if (identifier == "SSPR")
+            // Process sprite data using RLE decompression
+            var dataPosition = 0;
+            var totalPixels = width * height;
+            var maxDataIndex = totalPixels * 3;
+
+            for (var currentRow = 0; currentRow < height; currentRow++)
             {
-                bool writeColour;
-                var runningOffset = 0;
+                var step = 0;
+                var widthProgress = 0;
 
-                // Not sure how to calculate the length, so we'll use the fact that the only other thing in the file is
-                // a single hotspot, of a fixed length, so the size muut be here to the end of the file, minus the length
-                // of the hotspot.
-                //var pos = sprBinaryReader.BaseStream.Position;
-                //var len = sprBinaryReader.BaseStream.Length - 7;
-                ////var dataLength = (len - pos);
-                //var dataLength = ((len - pos) / frameCountTotal) - 4;
-
-                var dataLength = 0;
-                if (frame + 1 < frameInfos.Count)
+                while (widthProgress < width)
                 {
-                    dataLength = frameInfos[frame + 1].DataPosition - frameInfos[frame].DataPosition;
-                }
-                else
-                {
-                    if (frameInfos.Count == 1)
+                    // Bounds check for reading
+                    if (sprBinaryReader.BaseStream.Position >= sprBinaryReader.BaseStream.Length)
                     {
-                        dataLength = frameInfos[frame].DataPosition;
-                    }
-                    else
-                    {
-                        dataLength = (int)sprBinaryReader.BaseStream.Length - frameInfos[frame].DataPosition - 4 - 7 - 2;
-                    }
-                }
-
-                //var dataLength = frameInfos[frame].DataPosition;
-                if (frameInfos.Count != 1)
-                {
-                    sprBinaryReader.BaseStream.Seek(frameInfos[frame].DataPosition, SeekOrigin.Begin);
-                }
-
-                /*
-                The shadow sprite treats each pixel as on (coloured) or off (transparent)
-                Read through the data bytes, with the first byte being how many off pixels to 
-                draw, the second byte being how many on pixels to draw, the third being how
-                many off pixels to draw and so on. The pattern resets whenever the number of
-                pixels we have drawn matches the width of the output image.
-                Note: If we hit a zero, the processing for this line is inverted (i.e. the first
-                byte is how many on pixels, rather than how many off pixels)
-                */
-
-                var cnt = 0;
-                var invertLevel = 0;
-                for (int i = 0; i < dataLength; i++)
-                {
-                    if (runningOffset % width == 0)
-                    {
-                        cnt = 0;
-
-                        // the first time we hit this statement, don't do anything
-                        // the second time we hit this statement, set invert to false
-                        if (invertLevel == 2)
-                        {
-                            invertLevel = 0;
-                        }
-                        if (invertLevel == 1)
-                        {
-                            invertLevel++;
-                        }
-                    }
-
-                    writeColour = cnt % 2 != 0;
-                    if (invertLevel == 2)
-                    {
-                        writeColour = cnt % 2 == 0;
+                        throw new InvalidOperationException($"Unexpected end of file while reading frame {frame}");
                     }
 
                     dataByte = sprBinaryReader.ReadByte();
+                    var cnt = dataByte;
 
-                    if (dataByte == default)
+                    // Mask high bit for colored pixels (step & 1)
+                    if ((step & 1) != 0)
                     {
-                        invertLevel = 1;
+                        cnt &= 0x7f;
                     }
 
-                    for (int j = 0; j < dataByte; j++)
+                    // Bounds check for pixel count
+                    if (widthProgress + cnt > width)
                     {
-                        data[runningOffset + (j * 3) + 0] = writeColour ? (byte)255 : (byte)0;
-                        data[runningOffset + (j * 3) + 1] = writeColour ? (byte)255 : (byte)0;
-                        data[runningOffset + (j * 3) + 2] = writeColour ? (byte)255 : (byte)0;
+                        throw new InvalidOperationException($"Pixel count exceeds row width: {widthProgress + cnt} > {width}");
                     }
-                    runningOffset += (dataByte * 3);
-                    cnt++;
-                }
-            }
 
-
-            if (identifier == "RSPR")
-            {
-                while (currentRow < height)
-                {
-                    dataByte = sprBinaryReader.ReadByte();
-                    if (dataByte == width)
+                    if ((step & 1) != 0)
                     {
-                        // fill this row with the default colour
-                        for (int i = 0; i < width * 3; i += 3)
+                        // Draw colored pixels
+                        if (!isShadow)
                         {
-                            data[dataPosition + i] = DEFAULTCOLOUR;
-                            data[dataPosition + i + 1] = DEFAULTCOLOUR;
-                            data[dataPosition + i + 2] = DEFAULTCOLOUR;
-                        }
-                        dataPosition += width * 3;
-                        currentRow++;
-                    }
-                    else
-                    {
-                        if (!doneDefault)
-                        {
-                            // fill dataByte pixels with the default colour
-                            for (int i = 0; i < dataByte * 3; i += 3)
+                            // Regular sprite: read actual color data
+                            for (var i = 0; i < cnt; i++)
                             {
-                                data[dataPosition + i] = DEFAULTCOLOUR;
-                                data[dataPosition + i + 1] = DEFAULTCOLOUR;
-                                data[dataPosition + i + 2] = DEFAULTCOLOUR;
+                                if (dataPosition + 2 >= maxDataIndex)
+                                {
+                                    throw new InvalidOperationException($"Data buffer overflow at frame {frame}");
+                                }
+
+                                var colourByte = sprBinaryReader.ReadByte();
+                                var colour = GetColour(colourByte);
+                                data[dataPosition] = colour.B;
+                                data[dataPosition + 1] = colour.G;
+                                data[dataPosition + 2] = colour.R;
+                                dataPosition += 3;
                             }
-                            dataPosition += dataByte * 3;
-                            doneDefault = true;
-                            widthProgress = dataByte;
                         }
                         else
                         {
-                            if (!doneData)
+                            // Shadow sprite: draw white pixels
+                            for (var i = 0; i < cnt; i++)
                             {
-                                // fill dataByte pixels with the colours specified by the next dataByte bytes
-                                for (int i = 0; i < dataByte; i++)
+                                if (dataPosition + 2 >= maxDataIndex)
                                 {
-                                    var colourByte = sprBinaryReader.ReadByte();
-                                    var colour = GetColour(colourByte);
-                                    data[dataPosition] = colour.B;
-                                    data[dataPosition + 1] = colour.G;
-                                    data[dataPosition + 2] = colour.R;
-                                    dataPosition += 3;
-                                    widthProgress += 1;
+                                    throw new InvalidOperationException($"Data buffer overflow at frame {frame}");
                                 }
-                                doneData = true;
-                            }
-                            else
-                            {
-                                // fill dataByte pixels with the default colour
-                                for (int i = 0; i < dataByte * 3; i += 3)
-                                {
-                                    data[dataPosition + i] = DEFAULTCOLOUR;
-                                    data[dataPosition + i + 1] = DEFAULTCOLOUR;
-                                    data[dataPosition + i + 2] = DEFAULTCOLOUR;
-                                }
-                                dataPosition += dataByte * 3;
-                                widthProgress += dataByte;
 
-                                // Either we're at the end of the line, so we'll reset this anyway, or we're 
-                                // going to hit more data data, so we want to be expecting it
-                                doneData = false;
+                                data[dataPosition] = 255;     // B
+                                data[dataPosition + 1] = 255; // G
+                                data[dataPosition + 2] = 255; // R
+                                dataPosition += 3;
                             }
                         }
                     }
-
-                    if (widthProgress == width)
+                    else
                     {
-                        currentRow++;
-                        widthProgress = 0;
-                        doneDefault = false;
-                        doneData = false;
+                        // Draw transparent/default color pixels
+                        for (var i = 0; i < cnt; i++)
+                        {
+                            if (dataPosition + 2 >= maxDataIndex)
+                            {
+                                throw new InvalidOperationException($"Data buffer overflow at frame {frame}");
+                            }
+
+                            data[dataPosition] = DEFAULTCOLOUR;     // B
+                            data[dataPosition + 1] = DEFAULTCOLOUR; // G
+                            data[dataPosition + 2] = DEFAULTCOLOUR; // R
+                            dataPosition += 3;
+                        }
                     }
+
+                    widthProgress += cnt;
+                    step++;
+                }
+
+                // Ensure we processed exactly the expected width
+                if (widthProgress != width)
+                {
+                    throw new InvalidOperationException($"Row width mismatch: expected {width}, got {widthProgress}");
                 }
             }
 
-            // Create ImageSharp image and populate pixels
             var image = new Image<Rgba32>(width, height);
             image.ProcessPixelRows(accessor =>
             {
                 var src = 0;
-                for (int y = 0; y < height; y++)
+                for (var y = 0; y < height; y++)
                 {
                     var pixelRow = accessor.GetRowSpan(y);
-                    for (int x = 0; x < width; x++)
+                    for (var x = 0; x < width; x++)
                     {
                         var b = data[src];
                         var g = data[src + 1];
@@ -383,34 +335,55 @@ frames  frame_e2    frame_n2    frame_w2
                     }
                 }
             });
-
-            filename = Path.GetFileName(filename);
-            image.Save(String.Format(@"D:\data\DarkReign\{0}_{1}.bmp", filename, frame));
             result.Add(image);
         }
 
-        var offset = (totalHotspots * 3) + 4;
-        sprBinaryReader.BaseStream.Seek(-offset, SeekOrigin.End);
-        var hotSpotCount = sprBinaryReader.ReadInt32();
-        for (int i = 0; i < hotSpotCount; i++)
+        if (totalHotspots > 0)
         {
-            var hotSpotX = sprBinaryReader.ReadByte();
-            var hotSpotY = sprBinaryReader.ReadByte();
-            var unknown = sprBinaryReader.ReadByte(); // should be 0x01
+            try
+            {
+                sprBinaryReader.BaseStream.Seek(frameInfoOffset + (8 * frameCountTotal), SeekOrigin.Begin);
+                var hotspotRelativeOffset = sprBinaryReader.ReadInt32();
+                var hotspotAbsoluteOffset = frameDataOffset + hotspotRelativeOffset;
+
+                sprBinaryReader.BaseStream.Seek(hotspotAbsoluteOffset, SeekOrigin.Begin);
+                var hotSpotCount = sprBinaryReader.ReadInt32();
+
+                for (var i = 0; i < hotSpotCount; i++)
+                {
+                    var hotSpotX = sprBinaryReader.ReadByte();
+                    var hotSpotY = sprBinaryReader.ReadByte();
+                    var unknown = sprBinaryReader.ReadByte(); // should be 0x01
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not read hotspot data: {ex.Message}");
+            }
         }
 
         return result;
     }
 
-    private Rgba32 GetColour(byte paleteIndex)
+    private Rgba32 GetColour(byte paletteIndex)
     {
-        // Access the palette pixel data using SixLabors.ImageSharp
         Rgba32 color = default;
-        if (Palette != null && paleteIndex < Palette.Width * Palette.Height)
+        var activePalette = Palette ?? DefaultPalette;
+        
+        if (paletteIndex < activePalette.Count)
         {
-            int x = paleteIndex % Palette.Width;
-            int y = paleteIndex / Palette.Width;
-            color = Palette[x, y];
+            var (r, g, b) = activePalette[paletteIndex];
+            color = new Rgba32((byte)r, (byte)g, (byte)b, 255);
+        }
+        else if (paletteIndex == 0)
+        {
+            // Default/transparent color - return black
+            color = new Rgba32(0, 0, 0, 255);
+        }
+        else
+        {
+            // Fallback - return a visible color to indicate missing palette entry
+            color = new Rgba32(255, 0, 255, 255); // Magenta
         }
         return color;
     }
@@ -423,7 +396,7 @@ frames  frame_e2    frame_n2    frame_w2
 
     public class FrameInfo
     {
-        public int Unknown { get; set; }
         public int DataPosition { get; set; }
+        public int HotspotOffset { get; set; }
     }
 }
