@@ -4,53 +4,38 @@ namespace ii.BrightRespite;
 
 public class FtgProcessor
 {
-    public List<FtgFileInfo> Files = [];
-    private FileStream ftgFileStream;
-    private BinaryReader ftgBinaryReader;
-
-    public void Open(string ftgFilename)
+    public List<(string filename, byte[] bytes)> Read(string filename)
     {
-        ftgFileStream = new FileStream(ftgFilename, FileMode.Open, FileAccess.Read);
-        ftgBinaryReader = new BinaryReader(ftgFileStream);
-    }
+        using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+        using var binaryReader = new BinaryReader(fileStream);
 
-    public void Parse()
-    {
-        Files.Clear();
+        var identifier = binaryReader.ReadBytes(4);
+        var directoryOffset = BitConverter.ToInt32(binaryReader.ReadBytes(4), 0);
+        var fileCount = BitConverter.ToInt32(binaryReader.ReadBytes(4), 0);
 
-        var identifier = ftgBinaryReader.ReadBytes(4);
-        var directoryOffset = BitConverter.ToInt32(ftgBinaryReader.ReadBytes(4), 0);
-        var fileCount = BitConverter.ToInt32(ftgBinaryReader.ReadBytes(4), 0);
-
-        ftgBinaryReader.BaseStream.Seek(directoryOffset, SeekOrigin.Begin);
-        for (int i = 0; i < fileCount; i++)
+        var fileEntries = new List<FtgFileInfo>();
+        binaryReader.BaseStream.Seek(directoryOffset, SeekOrigin.Begin);
+        for (var i = 0; i < fileCount; i++)
         {
-            var filename = ftgBinaryReader.ReadChars(28);
-            var offset = BitConverter.ToInt32(ftgBinaryReader.ReadBytes(4), 0);
-            var size = BitConverter.ToInt32(ftgBinaryReader.ReadBytes(4), 0);
+            var entryFilename = binaryReader.ReadChars(28);
+            var offset = BitConverter.ToInt32(binaryReader.ReadBytes(4), 0);
+            var size = BitConverter.ToInt32(binaryReader.ReadBytes(4), 0);
             var info = new FtgFileInfo()
             {
-                Filename = new string(filename),
+                Filename = new string(entryFilename),
                 Offset = offset,
                 Size = size
             };
-            Files.Add(info);
+            fileEntries.Add(info);
         }
-    }
 
-    public void Extract(string outputFilename, FtgFileInfo fileInfo)
-    {
-        ftgBinaryReader.BaseStream.Seek(fileInfo.Offset, SeekOrigin.Begin);
-        var bytes = ftgBinaryReader.ReadBytes(fileInfo.Size);
-        using (FileStream outFile = new FileStream(outputFilename, FileMode.Create,FileAccess.Write))
+        var result = new List<(string filename, byte[] bytes)>();
+        foreach (var fileEntry in fileEntries)
         {
-            outFile.Write(bytes, 0, bytes.Length);
+            binaryReader.BaseStream.Seek(fileEntry.Offset, SeekOrigin.Begin);
+            var fileData = binaryReader.ReadBytes(fileEntry.Size);
+            result.Add((fileEntry.Filename.Split('\0')[0], fileData));
         }
-    }
-
-    public void Close()
-    {
-        ftgBinaryReader.Close();
-        ftgFileStream.Close();
+        return result;
     }
 }
