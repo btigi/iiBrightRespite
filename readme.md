@@ -5,7 +5,7 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 
 | Name   | Read | Write | Comment
 |--------|:----:|-------|--------
-| ACT    | ✔   |   ✗   |
+| ACT    | ✔   |   ✔   |
 | AIP    | ✗   |   ✗   | Plain text
 | BAK    | ✗   |   ✗   | Plain text
 | BMP    | ✗   |   ✗   | Standard bitmap
@@ -17,7 +17,7 @@ iiBrightRespite is a C# library supporting the modification of files relating to
 | DOC    | ✗   |   ✗   | Plain text
 | END    | ✗   |   ✗   | Plain text
 | FOG    | ✗   |   ✗   |
-| FTG    | ✔   |   ✗   |
+| FTG    | ✔   |   ✔   |
 | FSM    | ✔   |   ✗   |
 | H      | ✗   |   ✗   | Plain text
 | MAP    | ✗   |   ✗   |

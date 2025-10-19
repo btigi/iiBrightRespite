@@ -38,4 +38,47 @@ public class FtgProcessor
         }
         return result;
     }
+
+    public void Write(string filename, List<(string filename, byte[] bytes)> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        using var fileStream = new FileStream(filename, FileMode.Create, FileAccess.Write);
+        using var binaryWriter = new BinaryWriter(fileStream);
+
+        // Calculate directory offset (header + all file data)
+        var headerSize = 12; // 4 bytes identifier + 4 bytes directory offset + 4 bytes file count
+        var totalFileDataSize = files.Sum(f => f.bytes.Length);
+        var directoryOffset = headerSize + totalFileDataSize;
+
+        binaryWriter.Write(new byte[] { 0x46, 0x54, 0x47, 0x00 }); // "FTG\0" identifier
+        binaryWriter.Write(BitConverter.GetBytes(directoryOffset));
+        binaryWriter.Write(BitConverter.GetBytes(files.Count));
+
+        var fileInfos = new List<FtgFileInfo>();
+        var currentOffset = headerSize;
+
+        foreach (var (entryFilename, fileData) in files)
+        {
+            binaryWriter.Write(fileData);
+            fileInfos.Add(new FtgFileInfo
+            {
+                Filename = entryFilename,
+                Offset = currentOffset,
+                Size = fileData.Length
+            });
+            
+            currentOffset += fileData.Length;
+        }
+
+        foreach (var fileInfo in fileInfos)
+        {
+            var filenameBytes = new byte[28];
+            var sourceBytes = System.Text.Encoding.ASCII.GetBytes(fileInfo.Filename);
+            Array.Copy(sourceBytes, filenameBytes, Math.Min(sourceBytes.Length, 27)); // Leave at least one null terminator
+            binaryWriter.Write(filenameBytes);
+            binaryWriter.Write(BitConverter.GetBytes(fileInfo.Offset));
+            binaryWriter.Write(BitConverter.GetBytes(fileInfo.Size));
+        }
+    }
 }
