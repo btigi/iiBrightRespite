@@ -127,19 +127,44 @@ frames  frame_e2    frame_n2    frame_w2
         (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)
     ];
 
-    private FileStream sprFileStream { get; set; }
+    private Stream sprStream { get; set; }
     private BinaryReader sprBinaryReader { get; set; }
     public List<(int r, int g, int b)> Palette { get; set; }
 
     public void Open(string sprFilename)
     {
-        sprFileStream = new FileStream(sprFilename, FileMode.Open, FileAccess.Read);
-        sprBinaryReader = new BinaryReader(sprFileStream);
+        sprStream = new FileStream(sprFilename, FileMode.Open, FileAccess.Read);
+        sprBinaryReader = new BinaryReader(sprStream);
     }
 
-    public List<Image<Rgba32>> Parse()
+    public void Open(byte[] sprData)
     {
-        var result = new List<Image<Rgba32>>();
+        sprStream = new MemoryStream(sprData);
+        sprBinaryReader = new BinaryReader(sprStream);
+    }
+
+    public List<(Image<Rgba32>, bool)> Parse(byte[] sprData)
+    {
+        Open(sprData);
+        try
+        {
+            return Parse();
+        }
+        finally
+        {
+            Close();
+        }
+    }
+
+    public List<(Image<Rgba32>, bool)> Parse(byte[] sprData, List<(int r, int g, int b)> palette)
+    {
+        Palette = palette;
+        return Parse(sprData);
+    }
+
+    public List<(Image<Rgba32>, bool)> Parse()
+    {
+        var result = new List<(Image<Rgba32>, bool)>();
 
         var identifier = new string(sprBinaryReader.ReadChars(4));
         if (identifier != SignatureSprite && identifier != SignatureShadow)
@@ -335,7 +360,7 @@ frames  frame_e2    frame_n2    frame_w2
                     }
                 }
             });
-            result.Add(image);
+            result.Add((image, isShadow));
         }
 
         if (totalHotspots > 0)
@@ -391,7 +416,7 @@ frames  frame_e2    frame_n2    frame_w2
     public void Close()
     {
         sprBinaryReader?.Close();
-        sprFileStream?.Close();
+        sprStream?.Close();
     }
 
     public class FrameInfo
