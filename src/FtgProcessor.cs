@@ -51,7 +51,7 @@ public class FtgProcessor
         var totalFileDataSize = files.Sum(f => f.bytes.Length);
         var directoryOffset = headerSize + totalFileDataSize;
 
-        binaryWriter.Write(new byte[] { 0x46, 0x54, 0x47, 0x00 }); // "FTG\0" identifier
+        binaryWriter.Write(new byte[] { 0x46, 0x54, 0x47, 0x00 }); // "BOTG" identifier
         binaryWriter.Write(BitConverter.GetBytes(directoryOffset));
         binaryWriter.Write(BitConverter.GetBytes(files.Count));
 
