@@ -1,11 +1,10 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using ii.BrightRespite.Model;
-using System.Diagnostics.CodeAnalysis;
 
 namespace ii.BrightRespite;
 
-public class TilProcessor
+public partial class TilProcessor
 {
     private const string ExpectedSignature = "TILE";
 
@@ -13,110 +12,116 @@ public class TilProcessor
 
     private const int TilePixelDimension = 24;
     private const int TilePixelCount = TilePixelDimension * TilePixelDimension;
-    private const int TileRecordBytes = 1 + TilePixelCount;
+    private const int LandTileCount = 120;
+    private const int WaterTileCount = 64;
+    private const int CoastTileCount = 64;
+    private const int MaskTileCount = 259;
 
-    private string filename { get; set; }
-    private FileStream tilFileStream { get; set; }
-    private BinaryReader tilBinaryReader { get; set; }
     public PalFile Palette { get; set; }
 
-    public class TilFileData
+    public TilFile Read(string tilFilename)
     {
-        public List<Image<Rgba32>> Tiles { get; set; } = [];
-        public int TileSize { get; set; }
-    }
+		using var fs = new FileStream(tilFilename, FileMode.Open, FileAccess.Read);
+		using var br = new BinaryReader(fs);
 
-    public void Open(string tilFilename)
-    {
-        tilFileStream = new FileStream(tilFilename, FileMode.Open, FileAccess.Read);
-        tilBinaryReader = new BinaryReader(tilFileStream);
-        filename = tilFilename;
-    }
+		var result = new TilFile();
 
-    public TilFileData Parse()
-    {
-        var result = new TilFileData();
-
-        var signature = new string(tilBinaryReader.ReadChars(4));
+        var signature = new string(br.ReadChars(4));
         if (signature != ExpectedSignature)
         {
             throw new InvalidOperationException($"Unhandled TIL signature: {signature}");
         }
 
-        var version = tilBinaryReader.ReadInt32();
-        var tileSize = tilBinaryReader.ReadInt32();
+        var version = br.ReadInt32();
+        var tileSize = br.ReadInt32();
 
         result.TileSize = tileSize;
 
-        var stream = tilBinaryReader.BaseStream;
+        var stream = br.BaseStream;
         var bytesFromStartToEnd = stream.Length - TileDataStartOffset;
         if (bytesFromStartToEnd < 0)
         {
             throw new InvalidOperationException($"TIL file is too short: length {stream.Length} is before tile data offset {TileDataStartOffset}.");
         }
 
-        var tileCount = (int)(bytesFromStartToEnd / TileRecordBytes);
-
         stream.Seek(TileDataStartOffset, SeekOrigin.Begin);
 
+        var landTiles = ReadTiles(br, LandTileCount, "land");
+        var waterTiles = ReadTiles(br, WaterTileCount, "water");
+        var coastTiles = ReadTiles(br, CoastTileCount, "coast");
+        var maskTiles = ReadTiles(br, MaskTileCount, "mask");
+
+        AddTileImages(landTiles, result.LandTiles);
+        AddTileImages(waterTiles, result.WaterTiles);
+        AddTileImages(coastTiles, result.CoastTiles);
+        AddTileImages(maskTiles, result.Masks);
+
+        return result;
+    }
+
+    private List<byte[]> ReadTiles(BinaryReader br, int tileCount, string groupName)
+    {
         var tiles = new List<byte[]>(tileCount);
-        for (var t = 0; t < tileCount; t++)
+        for (var i = 0; i < tileCount; i++)
         {
-            _ = tilBinaryReader.ReadByte();
-            var pixelData = tilBinaryReader.ReadBytes(TilePixelCount);
+            _ = br.ReadByte();
+            var pixelData = br.ReadBytes(TilePixelCount);
             if (pixelData.Length != TilePixelCount)
             {
-                throw new EndOfStreamException($"Expected {TilePixelCount} bytes of tile data; got {pixelData.Length} at tile index {t}.");
+                throw new EndOfStreamException($"Expected {TilePixelCount} bytes of {groupName} tile data; got {pixelData.Length} at tile index {i}.");
             }
 
             tiles.Add(pixelData);
         }
 
-        int i = 0;
+        return tiles;
+    }
+
+    private void AddTileImages(IEnumerable<byte[]> tiles, List<Image<Rgba32>> target)
+    {
         foreach (var tile in tiles)
         {
-            var tileImage = new Image<Rgba32>(TilePixelDimension, TilePixelDimension);
+            var tileImage = CreateTileImage(tile);
+            target.Add(tileImage);
+        }
+    }
 
-            for (int y = 0; y < TilePixelDimension; y++)
+    private Image<Rgba32> CreateTileImage(byte[] tile)
+    {
+        var tileImage = new Image<Rgba32>(TilePixelDimension, TilePixelDimension);
+
+        for (int y = 0; y < TilePixelDimension; y++)
+        {
+            for (int x = 0; x < TilePixelDimension; x++)
             {
-                for (int x = 0; x < TilePixelDimension; x++)
+                int pixelIndex = y * TilePixelDimension + x;
+
+                if (pixelIndex < tile.Length)
                 {
-                    int pixelIndex = y * TilePixelDimension + x;
+                    byte paletteIndex = tile[pixelIndex];
 
-                    if (pixelIndex < tile.Length)
+                    if (Palette?.PrimaryPalette != null && paletteIndex < Palette.PrimaryPalette.Count)
                     {
-                        byte paletteIndex = tile[pixelIndex];
-
-                        if (Palette?.PrimaryPalette != null && paletteIndex < Palette.PrimaryPalette.Count)
-                        {
-                            var paletteColor = Palette.PrimaryPalette[paletteIndex];
-                            var color = new Rgba32((byte)paletteColor.r, (byte)paletteColor.g, (byte)paletteColor.b, 255);
-                            tileImage[x, y] = color;
-                        }
-                        else
-                        {
-                            tileImage[x, y] = new Rgba32(0, 0, 0, 255);
-                        }
+                        var paletteColor = Palette.PrimaryPalette[paletteIndex];
+                        var color = new Rgba32((byte)paletteColor.r, (byte)paletteColor.g, (byte)paletteColor.b, 255);
+                        tileImage[x, y] = color;
                     }
                     else
                     {
-                        tileImage[x, y] = new Rgba32(0, 0, 0, 0);
+                        tileImage[x, y] = new Rgba32(0, 0, 0, 255);
                     }
                 }
+                else
+                {
+                    tileImage[x, y] = new Rgba32(0, 0, 0, 0);
+                }
             }
-
-            string outputFilename = Path.Combine(Path.GetDirectoryName(filename) ?? ".", $"tile_{i:D4}.png");
-            tileImage.Save(outputFilename);
-
-            result.Tiles.Add(tileImage);
-
-            i++;
         }
 
-
-        return result;
+        return tileImage;
     }
-    public void Write(string filename)
+
+    public void Write(string filename, TilFile tilFile)
     {
         using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.ReadWrite);
         using var writer = new BinaryWriter(fileStream);
@@ -274,11 +279,5 @@ public class TilProcessor
 
             writer.Write(tileBytes);
         }
-    }
-
-    public void Close()
-    {
-        tilBinaryReader?.Close();
-        tilFileStream?.Close();
     }
 }
