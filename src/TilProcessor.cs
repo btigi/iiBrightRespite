@@ -4,131 +4,130 @@ using ii.BrightRespite.Model;
 
 namespace ii.BrightRespite;
 
+public enum TileType
+{
+	Land,
+	Water,
+	Coast,
+	Mask
+}
+
 public partial class TilProcessor
 {
-    private const string ExpectedSignature = "TILE";
+	private const string ExpectedSignature = "TILE";
+	private const int TilePixelDimension = 24;
+	private const int TilePixelCount = TilePixelDimension * TilePixelDimension;
+	private const int LandTileCount = 128;
+	private const int WaterTileCount = 64;
+	private const int CoastTileCount = 64;
+	private const int MaskTileCount = 259;
 
-    private const long TileDataStartOffset = 0x1210;
+	public PalFile Palette { get; set; }
 
-    private const int TilePixelDimension = 24;
-    private const int TilePixelCount = TilePixelDimension * TilePixelDimension;
-    private const int LandTileCount = 120;
-    private const int WaterTileCount = 64;
-    private const int CoastTileCount = 64;
-    private const int MaskTileCount = 259;
-
-    public PalFile Palette { get; set; }
-
-    public TilFile Read(string tilFilename)
-    {
+	public TilFile Read(string tilFilename)
+	{
 		using var fs = new FileStream(tilFilename, FileMode.Open, FileAccess.Read);
 		using var br = new BinaryReader(fs);
 
 		var result = new TilFile();
 
-        var signature = new string(br.ReadChars(4));
-        if (signature != ExpectedSignature)
-        {
-            throw new InvalidOperationException($"Unhandled TIL signature: {signature}");
-        }
+		var signature = new string(br.ReadChars(4));
+		if (signature != ExpectedSignature)
+		{
+			throw new InvalidOperationException($"Unhandled TIL signature: {signature}");
+		}
 
-        var version = br.ReadInt32();
-        var tileSize = br.ReadInt32();
+		var version = br.ReadInt32();
 
-        result.TileSize = tileSize;
+		result.TileSize = TilePixelDimension;
 
-        var stream = br.BaseStream;
-        var bytesFromStartToEnd = stream.Length - TileDataStartOffset;
-        if (bytesFromStartToEnd < 0)
-        {
-            throw new InvalidOperationException($"TIL file is too short: length {stream.Length} is before tile data offset {TileDataStartOffset}.");
-        }
+		var landTiles = ReadTiles(br, LandTileCount, TileType.Land, true);
+		var waterTiles = ReadTiles(br, WaterTileCount, TileType.Water, false);
+		var coastTiles = ReadTiles(br, CoastTileCount, TileType.Coast, true);
+		var maskTiles = ReadTiles(br, MaskTileCount, TileType.Mask, true);
 
-        stream.Seek(TileDataStartOffset, SeekOrigin.Begin);
+		AddTileImages(landTiles, result.LandTiles);
+		AddTileImages(waterTiles, result.WaterTiles);
+		AddTileImages(coastTiles, result.CoastTiles);
+		AddTileImages(maskTiles, result.Masks);
 
-        var landTiles = ReadTiles(br, LandTileCount, "land");
-        var waterTiles = ReadTiles(br, WaterTileCount, "water");
-        var coastTiles = ReadTiles(br, CoastTileCount, "coast");
-        var maskTiles = ReadTiles(br, MaskTileCount, "mask");
+		return result;
+	}
 
-        AddTileImages(landTiles, result.LandTiles);
-        AddTileImages(waterTiles, result.WaterTiles);
-        AddTileImages(coastTiles, result.CoastTiles);
-        AddTileImages(maskTiles, result.Masks);
+	private List<byte[]> ReadTiles(BinaryReader br, int tileCount, TileType tileType, bool hasUnknownByte)
+	{
+		var tiles = new List<byte[]>(tileCount);
+		for (var i = 0; i < tileCount; i++)
+		{
+			if (hasUnknownByte)
+			{
+				_ = br.ReadByte();
+			}
+			var pixelData = br.ReadBytes(TilePixelCount);
+			if (pixelData.Length != TilePixelCount)
+			{
+				var tileTypeName = Enum.GetName(typeof(TileType), tileType);
+				throw new EndOfStreamException($"Expected {TilePixelCount} bytes of {tileTypeName} tile data; got {pixelData.Length} at tile index {i}.");
+			}
 
-        return result;
-    }
+			tiles.Add(pixelData);
+		}
 
-    private List<byte[]> ReadTiles(BinaryReader br, int tileCount, string groupName)
-    {
-        var tiles = new List<byte[]>(tileCount);
-        for (var i = 0; i < tileCount; i++)
-        {
-            _ = br.ReadByte();
-            var pixelData = br.ReadBytes(TilePixelCount);
-            if (pixelData.Length != TilePixelCount)
-            {
-                throw new EndOfStreamException($"Expected {TilePixelCount} bytes of {groupName} tile data; got {pixelData.Length} at tile index {i}.");
-            }
+		return tiles;
+	}
 
-            tiles.Add(pixelData);
-        }
+	private void AddTileImages(IEnumerable<byte[]> tiles, List<Image<Rgba32>> target)
+	{
+		foreach (var tile in tiles)
+		{
+			var tileImage = CreateTileImage(tile);
+			target.Add(tileImage);
+		}
+	}
 
-        return tiles;
-    }
+	private Image<Rgba32> CreateTileImage(byte[] tile)
+	{
+		var tileImage = new Image<Rgba32>(TilePixelDimension, TilePixelDimension);
 
-    private void AddTileImages(IEnumerable<byte[]> tiles, List<Image<Rgba32>> target)
-    {
-        foreach (var tile in tiles)
-        {
-            var tileImage = CreateTileImage(tile);
-            target.Add(tileImage);
-        }
-    }
+		for (int y = 0; y < TilePixelDimension; y++)
+		{
+			for (int x = 0; x < TilePixelDimension; x++)
+			{
+				int pixelIndex = y * TilePixelDimension + x;
 
-    private Image<Rgba32> CreateTileImage(byte[] tile)
-    {
-        var tileImage = new Image<Rgba32>(TilePixelDimension, TilePixelDimension);
+				if (pixelIndex < tile.Length)
+				{
+					byte paletteIndex = tile[pixelIndex];
 
-        for (int y = 0; y < TilePixelDimension; y++)
-        {
-            for (int x = 0; x < TilePixelDimension; x++)
-            {
-                int pixelIndex = y * TilePixelDimension + x;
+					if (Palette?.PrimaryPalette != null && paletteIndex < Palette.PrimaryPalette.Count)
+					{
+						var paletteColor = Palette.PrimaryPalette[paletteIndex];
+						var color = new Rgba32((byte)paletteColor.r, (byte)paletteColor.g, (byte)paletteColor.b, 255);
+						tileImage[x, y] = color;
+					}
+					else
+					{
+						tileImage[x, y] = new Rgba32(0, 0, 0, 255);
+					}
+				}
+				else
+				{
+					tileImage[x, y] = new Rgba32(0, 0, 0, 0);
+				}
+			}
+		}
 
-                if (pixelIndex < tile.Length)
-                {
-                    byte paletteIndex = tile[pixelIndex];
+		return tileImage;
+	}
 
-                    if (Palette?.PrimaryPalette != null && paletteIndex < Palette.PrimaryPalette.Count)
-                    {
-                        var paletteColor = Palette.PrimaryPalette[paletteIndex];
-                        var color = new Rgba32((byte)paletteColor.r, (byte)paletteColor.g, (byte)paletteColor.b, 255);
-                        tileImage[x, y] = color;
-                    }
-                    else
-                    {
-                        tileImage[x, y] = new Rgba32(0, 0, 0, 255);
-                    }
-                }
-                else
-                {
-                    tileImage[x, y] = new Rgba32(0, 0, 0, 0);
-                }
-            }
-        }
+	public void Write(string filename, TilFile tilFile)
+	{
+		using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.ReadWrite);
+		using var writer = new BinaryWriter(fileStream);
 
-        return tileImage;
-    }
-
-    public void Write(string filename, TilFile tilFile)
-    {
-        using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.ReadWrite);
-        using var writer = new BinaryWriter(fileStream);
-
-        var tileOffsets = new[]
-        {
-            (0x1210, 576), // Tile 1 variation 1
+		var tileOffsets = new[]
+		{
+			(0x1210, 576), // Tile 1 variation 1
             (0x1452, 576), // Tile 1 variation 2
             (0x1692, 576), // Tile 1 variation 3
             (0x18d4, 576), // Tile 1 variation 4
@@ -264,20 +263,20 @@ public partial class TilProcessor
             (0x11e78, 576), // Tile 15 variation 8
         };
 
-        // Write pattern data to each tile location
-        for (int i = 0; i < tileOffsets.Length; i++)
-        {
-            var (offset, size) = tileOffsets[i];
+		// Write pattern data to each tile location
+		for (int i = 0; i < tileOffsets.Length; i++)
+		{
+			var (offset, size) = tileOffsets[i];
 
-            var tileBytes = new byte[size];
-            for (int j = 0; j < size; j++)
-            {
-                tileBytes[j] = (byte)(i + 1);
-            }
+			var tileBytes = new byte[size];
+			for (int j = 0; j < size; j++)
+			{
+				tileBytes[j] = (byte)(i + 1);
+			}
 
-            writer.BaseStream.Seek(offset, SeekOrigin.Begin);
+			writer.BaseStream.Seek(offset, SeekOrigin.Begin);
 
-            writer.Write(tileBytes);
-        }
-    }
+			writer.Write(tileBytes);
+		}
+	}
 }
