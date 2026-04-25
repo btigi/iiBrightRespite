@@ -11,12 +11,6 @@ public class PalProcessor
             throw new InvalidDataException($"Invalid palette file.");
         }
 
-        var bytes = File.ReadAllBytes(filepath);
-        if (bytes.Length != 247560)
-        {
-            throw new InvalidDataException($"Invalid palette file size: {bytes.Length}. Expected 768 bytes.");
-        }
-
         using var fs = new FileStream(filepath, FileMode.Open);
         using var br = new BinaryReader(fs);
         var fileType = br.ReadChars(4);
@@ -25,32 +19,37 @@ public class PalProcessor
             throw new InvalidDataException("Invalid PAL file format.");
         }
 
-        var version = br.ReadInt16();
+        var version = br.ReadInt32();
         if (version != 258)
         {
             throw new InvalidDataException("Invalid PAL file version.");
         }
 
+        var redEntries = br.ReadBytes(256);
+        var greenEntries = br.ReadBytes(256);
+        var blueEntries = br.ReadBytes(256);
 
         var result = new PalFile();
         result.PrimaryPalette = new List<(int r, int g, int b)>(256);
-        for (int i = 0; i < 768 / 3; i++)
+        for (int i = 0; i < 256; i++)
         {
-            result.PrimaryPalette.Add((
-                r: bytes[i * 3],
-                g: bytes[i * 3 + 1],
-                b: bytes[i * 3 + 2]
-            ));
+            var r = redEntries[i]*4;
+            var g = greenEntries[i] * 4;
+            var b = blueEntries[i] * 4;
+            result.PrimaryPalette.Add((r, g, b));
         }
 
-        result.SecondayrPalette = new List<(int r, int g, int b)>(256);
+        redEntries = br.ReadBytes(256);
+        greenEntries = br.ReadBytes(256);
+        blueEntries = br.ReadBytes(256);
+
+        result.SecondaryPalette = new List<(int r, int g, int b)>(256);
         for (int i = 0; i < 768 / 3; i++)
         {
-            result.SecondayrPalette.Add((
-                r: bytes[i * 3],
-                g: bytes[i * 3 + 1],
-                b: bytes[i * 3 + 2]
-            ));
+            var r = redEntries[i];
+            var g = greenEntries[i];
+            var b = blueEntries[i];
+            result.SecondaryPalette.Add((r, g, b));
         }
 
         result.Unknown1 = br.ReadBytes(32768);
