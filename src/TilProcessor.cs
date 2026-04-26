@@ -4,15 +4,7 @@ using ii.BrightRespite.Model;
 
 namespace ii.BrightRespite;
 
-public enum TileType
-{
-	Land,
-	Water,
-	Coast,
-	Mask
-}
-
-public partial class TilProcessor
+public class TilProcessor
 {
 	private const string ExpectedSignature = "TILE";
 	private const int TilePixelDimension = 24;
@@ -20,7 +12,8 @@ public partial class TilProcessor
 	private const int LandTileCount = 128;
 	private const int WaterTileCount = 64;
 	private const int CoastTileCount = 64;
-	private const int MaskTileCount = 259;
+	private const int MaskTileCount = 256;
+	private const int EditoMaskTileCount = 4;
 
 	public PalFile Palette { get; set; }
 
@@ -39,30 +32,42 @@ public partial class TilProcessor
 
 		var version = br.ReadInt32();
 
-		result.TileSize = TilePixelDimension;
-
 		var landTiles = ReadTiles(br, LandTileCount, TileType.Land, true);
 		var waterTiles = ReadTiles(br, WaterTileCount, TileType.Water, false);
 		var coastTiles = ReadTiles(br, CoastTileCount, TileType.Coast, true);
-		var maskTiles = ReadTiles(br, MaskTileCount, TileType.Mask, true);
+		var maskTiles = ReadTiles(br, MaskTileCount, TileType.TileMask, false);
+		var editorMaskTiles = ReadTiles(br, EditoMaskTileCount, TileType.EditorMask, false);
 
-		AddTileImages(landTiles, result.LandTiles);
-		AddTileImages(waterTiles, result.WaterTiles);
-		AddTileImages(coastTiles, result.CoastTiles);
-		AddTileImages(maskTiles, result.Masks);
+		AddLandCoastTileImages(landTiles, result.LandTiles);
+		AddWaterOrEditorTileImages(waterTiles, result.WaterTiles);
+		AddLandCoastTileImages(coastTiles, result.CoastTiles);
+		AddMaskTileImages(maskTiles, result.Masks);
+		AddWaterOrEditorTileImages(editorMaskTiles, result.EditorMasks);
+
+        result.UnknownA = br.ReadInt32();
+		result.UnknownB = br.ReadInt32();
 
 		return result;
 	}
 
-	private List<byte[]> ReadTiles(BinaryReader br, int tileCount, TileType tileType, bool hasUnknownByte)
+	private List<(byte[] Prefix, byte[] Pixels)> ReadTiles(BinaryReader br, int tileCount, TileType tileType, bool hasUnknownByte)
 	{
-		var tiles = new List<byte[]>(tileCount);
+		var tiles = new List<(byte[] Prefix, byte[] Pixels)>(tileCount);
 		for (var i = 0; i < tileCount; i++)
 		{
+			var prefix = Array.Empty<byte>();
+
+			if (tileType == TileType.TileMask && i % 4 == 0)
+			{
+				var groupHeader = br.ReadInt32();
+				prefix = BitConverter.GetBytes(groupHeader);
+			}
+
 			if (hasUnknownByte)
 			{
-				_ = br.ReadByte();
+				prefix = [br.ReadByte()];
 			}
+
 			var pixelData = br.ReadBytes(TilePixelCount);
 			if (pixelData.Length != TilePixelCount)
 			{
@@ -70,18 +75,53 @@ public partial class TilProcessor
 				throw new EndOfStreamException($"Expected {TilePixelCount} bytes of {tileTypeName} tile data; got {pixelData.Length} at tile index {i}.");
 			}
 
-			tiles.Add(pixelData);
+			tiles.Add((prefix, pixelData));
 		}
 
 		return tiles;
 	}
 
-	private void AddTileImages(IEnumerable<byte[]> tiles, List<Image<Rgba32>> target)
+	private void AddLandCoastTileImages(IEnumerable<(byte[] Prefix, byte[] Pixels)> tiles, List<(byte LeadingByte, Image<Rgba32> Image)> target)
 	{
-		foreach (var tile in tiles)
+		foreach (var (prefix, pixels) in tiles)
 		{
-			var tileImage = CreateTileImage(tile);
-			target.Add(tileImage);
+			if (prefix.Length != 1)
+			{
+				throw new InvalidOperationException($"Expected a single leading byte before land/coast pixels; got {prefix.Length} bytes.");
+			}
+
+			target.Add((prefix[0], CreateTileImage(pixels)));
+		}
+	}
+
+	private void AddWaterOrEditorTileImages(IEnumerable<(byte[] Prefix, byte[] Pixels)> tiles, List<Image<Rgba32>> target)
+	{
+		foreach (var (prefix, pixels) in tiles)
+		{
+			if (prefix.Length != 0)
+			{
+				throw new InvalidOperationException($"Water and editor mask tiles must have no prefix; got {prefix.Length} bytes.");
+			}
+
+			target.Add(CreateTileImage(pixels));
+		}
+	}
+
+	private void AddMaskTileImages(IEnumerable<(byte[] Prefix, byte[] Pixels)> tiles, List<(int? GroupHeader, Image<Rgba32> Image)> target)
+	{
+		foreach (var (prefix, pixels) in tiles)
+		{
+			int? groupHeader = null;
+			if (prefix.Length == 4)
+			{
+				groupHeader = BitConverter.ToInt32(prefix, 0);
+			}
+			else if (prefix.Length != 0)
+			{
+				throw new InvalidOperationException($"Mask tile prefix must be empty or 4 bytes (group int); got {prefix.Length} bytes.");
+			}
+
+			target.Add((groupHeader, CreateTileImage(pixels)));
 		}
 	}
 
